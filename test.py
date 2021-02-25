@@ -15,6 +15,8 @@ def to_object(o):
 
 
 # need to fill out for this to work
+ANILIST_ACCESS_TOKEN = ""
+USERNAME = ""
 sonarrShows = []
 aniListShows = []
 
