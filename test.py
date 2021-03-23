@@ -7,6 +7,8 @@ import requests
 import traceback
 import io
 from datetime import date
+# variables/keys
+from auth import *
 
 logger = logging.getLogger("SonarrAniSync")
 
@@ -18,16 +20,7 @@ def to_object(o):
 
 
 # need to fill out for this to work
-ANILIST_ACCESS_TOKEN = ""
-USERNAME = ""
-ANICLIENT = ''
-ANISECRET = ''
-SONARRAPIKEY = ""
-SONARRURL = ""
-sonarrShows = []
-aniListShows = []
-aniListShowsFromFile = []
-userListResponse = ''
+
 
 
 class anilist_series:
@@ -739,7 +732,8 @@ def tagShowInSonarr(id, title, series, aniListItem):
 
     if tag in json_object['tags']:
         print ("Skipped tagging " + title)
-
+        return
+    
     json_object['tags'].append(tag)
     
     response = requests.put(SONARRURL + 'series?apikey=' + SONARRAPIKEY, json=json_object)

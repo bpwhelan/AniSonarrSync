@@ -1,0 +1,10 @@
+ANILIST_ACCESS_TOKEN = ""
+USERNAME = ""
+ANICLIENT = ''
+ANISECRET = ''
+SONARRAPIKEY = ""
+SONARRURL = ""
+sonarrShows = []
+aniListShows = []
+aniListShowsFromFile = []
+userListResponse = ''
