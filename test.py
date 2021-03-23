@@ -292,7 +292,7 @@ def getList(username):
 
 def fetch_sonarr_list():
     response = requests.get(
-        'http://192.168.1.44:8989/api/series?apikey=967131e54d324b8b97496273edbe0551')
+        SONARRURL + 'series?apikey=967131e54d324b8b97496273edbe0551')
 
     list_items = json.loads(response.content, object_hook=to_object)
 
@@ -721,7 +721,7 @@ def addShowToSonarr(id, title, series, item):
         'seasonFolder' : 'true',
         'tags' : [tag]
     }
-    response = requests.post('http://192.168.1.44:8989/api/series?apikey=' + SONARRAPIKEY, data=str(params).encode('utf-8'))
+    response = requests.post(SONARRURL + 'series?apikey=' + SONARRAPIKEY, data=str(params).encode('utf-8'))
 
     print (response.content.decode('utf-8'))
 
@@ -739,11 +739,10 @@ def tagShowInSonarr(id, title, series, aniListItem):
 
     if tag in json_object['tags']:
         print ("Skipped tagging " + title)
-        return
 
     json_object['tags'].append(tag)
     
-    response = requests.put('http://192.168.1.44:8989/api/series?apikey=' + SONARRAPIKEY, json=json_object)
+    response = requests.put(SONARRURL + 'series?apikey=' + SONARRAPIKEY, json=json_object)
 
     print (response.content.decode('utf-8'))
 
@@ -762,7 +761,7 @@ def getIDFromSonarr(title, item):
     print(title)
     print(title.replace(' ', '%20'))
     response = requests.get(
-        'http://192.168.1.44:8989/api/series/lookup?apikey=967131e54d324b8b97496273edbe0551&term=' + title.replace(' ', '%20'))
+        SONARRURL + 'series/lookup?apikey=967131e54d324b8b97496273edbe0551&term=' + title.replace(' ', '%20'))
 
     # print(response.content.decode('utf-8'))
 
