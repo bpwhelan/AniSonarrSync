@@ -4,6 +4,9 @@ import logging
 import re
 import time
 import requests
+import traceback
+import io
+from datetime import date
 
 logger = logging.getLogger("SonarrAniSync")
 
@@ -17,8 +20,14 @@ def to_object(o):
 # need to fill out for this to work
 ANILIST_ACCESS_TOKEN = ""
 USERNAME = ""
+ANICLIENT = ''
+ANISECRET = ''
+SONARRAPIKEY = ""
+SONARRURL = ""
 sonarrShows = []
 aniListShows = []
+aniListShowsFromFile = []
+userListResponse = ''
 
 
 class anilist_series:
@@ -45,6 +54,7 @@ class anilist_series:
         bangerEDs,
         keijo,
         sonarr,
+        jsonObject,
     ):
         self.id = id
         self.sType = sType
@@ -67,24 +77,77 @@ class anilist_series:
         self.bangerEDs = bangerEDs
         self.keijo = keijo
         self.sonarr = sonarr
+        self.jsonObject = jsonObject
+
+    def toJSON(self):
+        return json.dumps(self, default=lambda o: o.__dict__, 
+            sort_keys=True, indent=4)
 
 
 class sonarr_Item:
     def __init__(
         self,
+        id,
         tvdbId,
         sortTitle,
+        title,
         jsonObject,
         episodeCount,
         episodeFileCount,
     ):
-
+        self.id = id
         self.tvdbId = tvdbId
         self.sortTitle = sortTitle
+        self.title = title
         self.jsonObject = jsonObject
         self.episodeCount = episodeCount
         self.episodeFileCount = episodeFileCount
 
+
+def check_and_get_old_token():
+    try:
+        # open the file if it exists
+        print('Checking for token file')
+        token_file = open('anilist.token', 'r+')
+        token_json = json.load(token_file)
+        time_now = time.time()
+
+        if time_now < token_json['expires']:
+            global access_token
+            access_token = token_json['access_token']
+            token_file.close()
+            print('Token file checked and valid')
+            return True
+        else:
+            token_file.close()
+            print('Token file checked and invalid')
+            return False
+
+    except Exception as e:
+        # Token file doesnt exist or there was some other error
+        # create a new empty token file
+        print('No existing token file found')
+        open('anilist.token', 'w').close()
+        return False
+
+def getAuth():
+    try:
+        print ('Trying to get new anilist token')
+        request = requests.post('https://anilist.co/api/v2/oauth/authorize', params={'grant_type':'authorization_code', 'client_id':ANICLIENT, 'client_secret':ANISECRET, 'redirect_uri':REDIRECT})
+        print ('Gained anilist token')
+
+        print('Writing new anilist token file')
+        request_json = request.json()
+        print(request_json)
+        f = open('anilist.token', 'w')
+        json.dump(request_json, f)
+        f.close()
+        
+        global accessToken
+        accessToken = request_json['access_token']
+    except Exception as e:
+        traceback.print_exc()
+        print('Error getting anilist API token')
 
 def fetch_user_list(username):
     query = """
@@ -136,7 +199,7 @@ def fetch_user_list(username):
     url = "https://graphql.anilist.co"
 
     headers = {
-        "Authorization": "Bearer " + ANILIST_ACCESS_TOKEN,
+        "Authorization": "Bearer " + accessToken,
         "Accept": "application/json",
         "Content-Type": "application/json",
     }
@@ -145,11 +208,20 @@ def fetch_user_list(username):
         url, headers=headers, json={"query": query, "variables": variables}
     )
 
-    f = open("list.json", "w")
-    f.write(response.content.decode('utf-8'))
+    global userListResponse
+    userListResponse = response.content.decode('utf-8')
+    # print(response.content.decode('utf-8'))
+
+    # f = open("list.json", "w")
+    # f.write(response.content.decode('utf-8'))
+    # f.close()
+
+    f = open("list2.json", "w")
+    f.write(userListResponse)
     f.close()
 
     for item in json.loads(response.content, object_hook=to_object):
+        logger.info(item)
         for mediaCollection in item.MediaListCollection.lists:
             for list_entry in mediaCollection.entries:
                 aniListShows.append(mediaitem_to_object(list_entry))
@@ -230,16 +302,28 @@ def fetch_sonarr_list():
 
 
 def sonarrItem_To_Object(list_entry):
+    episodeCount = ''
+    episodeFileCount = ''
+    seasons = []
     jsonObject = list_entry
     tvdbId = list_entry.tvdbId
     sortTitle = list_entry.sortTitle
-    episodeCount = list_entry.episodeCount
-    episodeFileCount = list_entry.episodeFileCount
-    seasons = list_entry.seasons
+    title = list_entry.title
+    id = ''
+    if hasattr(list_entry, "id"):
+        id = list_entry.id
+    if hasattr(list_entry, "episodeCount"):
+        episodeCount = list_entry.episodeCount
+    if hasattr(list_entry, "episodeFileCount"):  
+        episodeFileCount = list_entry.episodeFileCount
+    if hasattr(list_entry, "seasons"):
+        seasons = list_entry.seasons
 
     sonarrItem = sonarr_Item(
+        id,
         tvdbId,
         sortTitle,
+        title,
         jsonObject,
         episodeCount,
         episodeFileCount,
@@ -271,6 +355,7 @@ def mediaitem_to_object(media_item):
     bangerEDs = ""
     keijo = ""
     sonarr = ""
+    jsonObject = media_item
 
     if hasattr(media_item.customLists, "Scouting"):
         scouting = media_item.customLists.Scouting
@@ -335,6 +420,7 @@ def mediaitem_to_object(media_item):
         bangerEDs,
         keijo,
         sonarr,
+        jsonObject,
     )
 
     return series
@@ -370,7 +456,7 @@ def addToSonarrList(mediaId, series_obj):
     url = "https://graphql.anilist.co"
 
     headers = {
-        "Authorization": "Bearer " + ANILIST_ACCESS_TOKEN,
+        "Authorization": "Bearer " + accessToken,
         "Accept": "application/json",
         "Content-Type": "application/json",
     }
@@ -399,8 +485,6 @@ def addToDownloadedList(mediaId, series_obj, removeDownloaded):
         None
     else:
         customLists.append("Downloaded")
-    if(series_obj.sonarr):
-        customLists.append("Sonarr")
     if(series_obj.scouting):
         customLists.append("Scouting")
     if(series_obj.shame):
@@ -411,6 +495,7 @@ def addToDownloadedList(mediaId, series_obj, removeDownloaded):
         customLists.append("BANGER_EDs")
     if(series_obj.keijo):
         customLists.append("Keijo")
+    customLists.append("Sonarr")
     print(customLists)
     print(series_obj.title_english)
 
@@ -419,7 +504,7 @@ def addToDownloadedList(mediaId, series_obj, removeDownloaded):
     url = "https://graphql.anilist.co"
 
     headers = {
-        "Authorization": "Bearer " + ANILIST_ACCESS_TOKEN,
+        "Authorization": "Bearer " + accessToken,
         "Accept": "application/json",
         "Content-Type": "application/json",
     }
@@ -455,7 +540,7 @@ def remove_sonarrTag(mediaId, series_obj):
     url = "https://graphql.anilist.co"
 
     headers = {
-        "Authorization": "Bearer " + ANILIST_ACCESS_TOKEN,
+        "Authorization": "Bearer " + accessToken,
         "Accept": "application/json",
         "Content-Type": "application/json",
     }
@@ -491,7 +576,7 @@ def fixBlankTag(mediaId, series_obj):
     url = "https://graphql.anilist.co"
 
     headers = {
-        "Authorization": "Bearer " + ANILIST_ACCESS_TOKEN,
+        "Authorization": "Bearer " + accessToken,
         "Accept": "application/json",
         "Content-Type": "application/json",
     }
@@ -548,7 +633,7 @@ def search_by_name(anilist_show_name):
     url = "https://graphql.anilist.co"
 
     headers = {
-        "Authorization": "Bearer " + ANILIST_ACCESS_TOKEN,
+        "Authorization": "Bearer " + accessToken,
         "Accept": "application/json",
         "Content-Type": "application/json",
     }
@@ -589,10 +674,148 @@ def checkSonarrForDownloadedFiles():
                         if found:
                             break
 
+def fetch_user_list_by_file():
+
+    with open('list.json') as f:
+     data = json.load(f)
+
+    for item in json.loads(json.dumps(data), object_hook=to_object):
+        logger.info(item)
+        for mediaCollection in item.MediaListCollection.lists:
+            for list_entry in mediaCollection.entries:
+                aniListShowsFromFile.append(mediaitem_to_object(list_entry))
+
+    print(len(aniListShowsFromFile))
+
+newAnilistShows = []
+tags = []
+
+def getTagForShow(id, title, series, item):
+    season = item.jsonObject.media.season.lower()
+    currentYear = date.today().year
+    tagName = season + str(currentYear)
+    if not tags:
+        response = requests.get(SONARRURL + 'tag?apikey=' + SONARRAPIKEY)
+        for tag in json.loads(response.content, object_hook=to_object):
+            tags.append(tag)
+    
+    for tag in tags:
+        print(tag.label)
+        print(tagName)
+        if tag.label == tagName:
+            return tag.id
+
+def addShowToSonarr(id, title, series, item):
+    tag = getTagForShow(id, title, series, item)
+    print(id)
+    print(title)
+    params = {
+        'tvdbId' : id,
+        'title' : series.jsonObject.title,
+        'titleSlug' : series.jsonObject.titleSlug,
+        'profileId' : 9,
+        # 'images' : json.dumps(str(series.jsonObject.images)),
+        # 'seasons' : str(series.jsonObject.seasons),
+        'seriesType' : 'Anime',
+        'path' : '/tv/Anime/' + series.jsonObject.title,
+        'seasonFolder' : 'true',
+        'tags' : [tag]
+    }
+    response = requests.post('http://192.168.1.44:8989/api/series?apikey=' + SONARRAPIKEY, data=str(params).encode('utf-8'))
+
+    print (response.content.decode('utf-8'))
+
+def tagShowInSonarr(id, title, series, aniListItem):
+    sonarrEntry = ''
+    for item in sonarrShows:
+        if item.tvdbId == id:
+            sonarrEntry = item
+            break
+    tag = getTagForShow(id, title, sonarrEntry, aniListItem)
+    
+    sonarrShowResp = requests.get(SONARRURL + "series/" + str(sonarrEntry.id) + "?apikey=" + SONARRAPIKEY)
+
+    json_object = json.loads(sonarrShowResp.content.decode('utf-8'))
+
+    json_object['tags'].append(tag)
+    
+    response = requests.put('http://192.168.1.44:8989/api/series?apikey=' + SONARRAPIKEY, json=json_object)
+
+    print (response.content.decode('utf-8'))
+
+def checkAndAddSonarrShow(id, title, series, anilistItem):
+    fetch_sonarr_list()
+    found = False
+    for item in sonarrShows:
+        if item.tvdbId == id:
+            found = True
+    if not found:
+        addShowToSonarr(id, title, series, anilistItem)
+    else:
+        tagShowInSonarr(id, title, series, anilistItem)
+
+def getIDFromSonarr(title, item):
+    print(title)
+    print(title.replace(' ', '%20'))
+    response = requests.get(
+        'http://192.168.1.44:8989/api/series/lookup?apikey=967131e54d324b8b97496273edbe0551&term=' + title.replace(' ', '%20'))
+
+    # print(response.content.decode('utf-8'))
+
+    with io.open("tvdbSearch.json", "w", encoding="utf-8") as f:
+        f.write(response.content.decode('utf-8'))
+
+    list_items = json.loads(response.content, object_hook=to_object)
+
+    series_obj = sonarrItem_To_Object(list_items[0])
+
+    checkAndAddSonarrShow(series_obj.tvdbId, series_obj.title, series_obj, item)
+
+def getTVDBIDforNewShows():
+    tvdbID = ''
+    for item in newAnilistShows:
+        if item.title_english:
+           tvdbID = getIDFromSonarr(item.title_english, item)
+        else:
+            tvdbID = getIDFromSonarr(item.title_romaji, item)
+
+def getNewShows():
+    fetch_user_list(USERNAME)
+    fetch_user_list_by_file()
+    for item in aniListShows:
+        found = False
+        for item2 in aniListShowsFromFile:
+            if item.id == item2.id:
+                found = True
+        if not found:
+            newAnilistShows.append(item)
+    
+    for item in newAnilistShows:
+        print (item.title_romaji)
+
+    getTVDBIDforNewShows()
+
+# write updates
+    f = open("list.json", "w")
+    f.write(userListResponse)
+    f.close()
+
+    # list_items = json.loads(response.content, object_hook=to_object)
+
+
 # sonarrList =  getList(USERNAME)
-fetch_sonarr_list()
-fetch_user_list(USERNAME)
-checkSonarrForDownloadedFiles()
+# Future Use
+# if not check_and_get_old_token(): 
+#     print('No valid existing token file')
+#     getAuth()
+# fetch_sonarr_list()
+# fetch_user_list(USERNAME)
+
+getNewShows()
+# getTVDBIDforNewShows()
+
+
+# checkSonarrForDownloadedFiles()
 
 # for entry in sonarrShows:
 #     print(entry.title_english)
