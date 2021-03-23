@@ -737,6 +737,10 @@ def tagShowInSonarr(id, title, series, aniListItem):
 
     json_object = json.loads(sonarrShowResp.content.decode('utf-8'))
 
+    if tag in json_object['tags']:
+        print ("Skipped tagging " + title)
+        return
+
     json_object['tags'].append(tag)
     
     response = requests.put('http://192.168.1.44:8989/api/series?apikey=' + SONARRAPIKEY, json=json_object)
