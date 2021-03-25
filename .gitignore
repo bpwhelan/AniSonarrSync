@@ -5,6 +5,6 @@ search.json
 list2.json
 tvdbSearch.json
 anilist.token
-venv
-.vscode
-.idea
+venv/
+.vscode/
+.idea/
