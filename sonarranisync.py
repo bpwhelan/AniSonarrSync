@@ -16,6 +16,12 @@ user_list_response = ''
 
 
 # noinspection PyArgumentList
+
+headers = {
+    'X-Api-Key': SONARRAPIKEY
+}
+
+
 def to_object(o):
     keys, values = zip(*o.items())
     # print(keys, values)
@@ -295,6 +301,7 @@ def fetch_sonarr_list():
     response = requests.get(
         SONARRURL + "series?apikey=" + SONARRAPIKEY)
 
+    # print(response.content.decode('utf-8'))
     list_items = json.loads(response.content, object_hook=to_object)
 
     for item in list_items:
@@ -688,10 +695,22 @@ def fetch_user_list_by_file():
     print(len(aniListShowsFromFile))
 
 
+def create_tag_for_show(item, tag_name):
+    params = {
+        'label': tag_name
+    }
+
+    response = requests.post(SONARRURL + 'tag', headers=headers, json=params)
+    print(response.content.decode('utf-8'))
+    tag = json.loads(response.content, object_hook=to_object)
+
+    return tag.id
+
+
 def get_tag_for_show(item):
     season = item.jsonObject.media.season.lower()
-    current_year = date.today().year
-    tag_name = season + str(current_year)
+    year = item.started_year
+    tag_name = season + str(year)
     if not tags:
         response = requests.get(SONARRURL + 'tag?apikey=' + SONARRAPIKEY)
         for tag in json.loads(response.content, object_hook=to_object):
@@ -702,6 +721,7 @@ def get_tag_for_show(item):
         print(tag_name)
         if tag.label == tag_name:
             return tag.id
+    return create_tag_for_show(item, tag_name)
 
 
 def add_show_to_sonarr(tvdb_id, title, series, item):
@@ -765,9 +785,10 @@ def check_and_add_sonarr_show(tvdb_id, title, series, anilist_item):
 
 def get_id_from_sonarr(title, item):
     print(title)
-    print(title.replace(' ', '%20'))
+    search_string = title.replace(' ', '%20') + '%20' + str(item.started_year)
+    print(search_string)
     response = requests.get(
-        SONARRURL + 'series/lookup?apikey=' + SONARRAPIKEY + '&term=' + title.replace(' ', '%20'))
+        SONARRURL + 'series/lookup?apikey=' + SONARRAPIKEY + '&term=' + search_string)
 
     # print(response.content.decode('utf-8'))
 
@@ -821,8 +842,10 @@ def get_new_shows():
 #     getAuth()
 # fetch_sonarr_list()
 # fetch_user_list(USERNAME)
-
+#
 get_new_shows()
+
+# create_tag_for_show(tag_name='')
 # getTVDBIDforNewShows()
 
 
