@@ -4,7 +4,3 @@ ANICLIENT = ''
 ANISECRET = ''
 SONARRAPIKEY = ""
 SONARRURL = ""
-sonarrShows = []
-aniListShows = []
-aniListShowsFromFile = []
-userListResponse = ''

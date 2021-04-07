@@ -7,12 +7,16 @@ from datetime import date
 import requests
 
 # variables/keys
-from auth import *
+from auth import ANILIST_ACCESS_TOKEN, USERNAME, SONARRAPIKEY, SONARRURL
 
 logger = logging.getLogger("SonarrAniSync")
 newAnilistShows = []
 tags = []
 user_list_response = ''
+sonarrShows = []
+aniListShows = []
+aniListShowsFromFile = []
+userListResponse = ''
 
 
 # noinspection PyArgumentList
@@ -207,7 +211,7 @@ def fetch_user_list(username):
     url = "https://graphql.anilist.co"
 
     headers = {
-        "Authorization": "Bearer " + accessToken,
+        "Authorization": "Bearer " + ANILIST_ACCESS_TOKEN,
         "Accept": "application/json",
         "Content-Type": "application/json",
     }
@@ -467,7 +471,7 @@ def add_to_sonarr_list(media_id, series_obj):
     url = "https://graphql.anilist.co"
 
     headers = {
-        "Authorization": "Bearer " + accessToken,
+        "Authorization": "Bearer " + ANILIST_ACCESS_TOKEN,
         "Accept": "application/json",
         "Content-Type": "application/json",
     }
@@ -513,7 +517,7 @@ def add_to_downloaded_list(media_id, series_obj, remove_downloaded):
     url = "https://graphql.anilist.co"
 
     headers = {
-        "Authorization": "Bearer " + accessToken,
+        "Authorization": "Bearer " + ANILIST_ACCESS_TOKEN,
         "Accept": "application/json",
         "Content-Type": "application/json",
     }
@@ -570,7 +574,7 @@ def search_by_name(anilist_show_name):
     url = "https://graphql.anilist.co"
 
     headers = {
-        "Authorization": "Bearer " + accessToken,
+        "Authorization": "Bearer " + ANILIST_ACCESS_TOKEN,
         "Accept": "application/json",
         "Content-Type": "application/json",
     }
