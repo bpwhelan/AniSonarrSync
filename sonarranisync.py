@@ -155,6 +155,8 @@ class SonarrItem:
 
 
 # noinspection PyGlobalUndefined
+
+# DONE
 def fetch_user_list(username):
     query = """
             query ($username: String) {
@@ -296,7 +298,7 @@ def get_list(username):
                 (len(anilist_series)))
     return anilist_series
 
-
+# DONE
 def fetch_sonarr_list():
     response = requests.get(
         SONARRURL + "series?apikey=" + SONARRAPIKEY)
@@ -434,7 +436,7 @@ def mediaitem_to_object(media_item):
 
     return series
 
-
+# DONE
 def add_to_sonarr_list(media_id, series_obj):
     query = """
         mutation ($mediaId: Int, $customLists: [String]) {
@@ -478,7 +480,7 @@ def add_to_sonarr_list(media_id, series_obj):
 
     print(response.content)
 
-
+# DONE
 def add_to_downloaded_list(media_id, series_obj, remove_downloaded):
     query = """
         mutation ($mediaId: Int, $customLists: [String]) {
@@ -524,79 +526,7 @@ def add_to_downloaded_list(media_id, series_obj, remove_downloaded):
 
     print(response.content)
 
-
-def remove_sonarr_tag(media_id, series_obj):
-    query = """
-        mutation ($mediaId: Int, $notes: String) {
-            SaveMediaListEntry (mediaId: $mediaId, notes: $notes) {
-                id
-                notes
-            }
-        }
-        """
-    notes = series_obj.notes
-
-    if notes is not None:
-        notes = notes.replace('#sonarr', '')
-
-    print(notes)
-    print(series_obj.title_english)
-
-    variables = {"mediaId": media_id, "notes": notes}
-
-    url = "https://graphql.anilist.co"
-
-    headers = {
-        "Authorization": "Bearer " + accessToken,
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-    }
-
-    print({"query": query, "variables": variables})
-
-    response = requests.post(
-        url, headers=headers, json={"query": query, "variables": variables}
-    )
-
-    print(response.content)
-
-
-def fix_blank_tag(media_id, series_obj):
-    query = """
-        mutation ($mediaId: Int, $notes: String) {
-            SaveMediaListEntry (mediaId: $mediaId, notes: $notes) {
-                id
-                notes
-            }
-        }
-        """
-    notes = series_obj.notes
-
-    if notes is not None and notes == ' ':
-        notes = ''
-
-    print(notes)
-    print(series_obj.title_english)
-
-    variables = {"mediaId": media_id, "notes": notes}
-
-    url = "https://graphql.anilist.co"
-
-    headers = {
-        "Authorization": "Bearer " + accessToken,
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-    }
-
-    print({"query": query, "variables": variables})
-
-    response = requests.post(
-        url, headers=headers, json={"query": query, "variables": variables}
-    )
-
-    print(response.content)
-
-
+# DONE
 def search_by_name(anilist_show_name):
     query = """
         query ($id: Int, $page: Int, $perPage: Int, $search: String) {
