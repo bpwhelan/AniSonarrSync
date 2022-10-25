@@ -4,3 +4,8 @@ ANICLIENT = ''
 ANISECRET = ''
 SONARRAPIKEY = ""
 SONARRURL = ""
+BLACKLIST = list(map(lambda x: x.lower(),
+                     [
+                     ""
+                     ]
+                     ))
