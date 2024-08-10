@@ -1,3 +1,5 @@
+Dead, Sonarr has since added support for adding from anilist.
+
 Bunch of functions to sync my AniList and Sonarr.
 
 Few capabilities atm
